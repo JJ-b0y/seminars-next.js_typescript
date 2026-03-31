@@ -5,9 +5,11 @@ const NavBar = () => {
         <header>
             <nav className="w-full shadow-md">
                 <div className="flex justify-between items-center py-4 mx-6">
-                    <Link href='/' className="border-4 border-violet-950 rounded-full">
-                        <span className="text-3xl text-violet-950 font-extrabold font-[papyrus]">JR</span>
-                    </Link>
+                    <div className="rounded-full">
+                        <Link href='/' className="" >
+                            <span className="text-xl text-violet-950 font-extrabold font-mono px-6">SS</span>
+                        </Link>
+                    </div>
 
                     <ul className="flex gap-6 cursor-pointer">
                         <li className="hover:text-pink-700 hover:text-xl">🙍‍♂️ Account</li>

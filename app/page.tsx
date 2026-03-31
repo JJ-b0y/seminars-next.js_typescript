@@ -7,10 +7,10 @@ const Home = () => {
         <section>
             <div className="flex flex-col justify-center items-center w-full">
                 <h1 className="text-center text-7xl font-extrabold font-[papyrus] mt-4 mb-2">
-                    Junis Resources
+                    Stewardship Seminars
                 </h1>
-                <p className="text-center text-violet-950 text-2xl font-bold font-[calibri]">
-                    Your Ultimate Laundry, Cleaning & Body Care Supplies
+                <p className="text-center text-violet-800 text-2xl font-bold font-[papyrus]">
+                    ...your ultimate guide to being a better steward...
                 </p>
             </div>
 
