@@ -19,8 +19,8 @@ const martianMono = Martian_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next.JS & TypeScript",
-  description: "Learn Next.JS & TypeScript",
+  title: "Stewardship Seminars",
+  description: "Stewardship Seminars for 2026",
 };
 
 export default function RootLayout({
