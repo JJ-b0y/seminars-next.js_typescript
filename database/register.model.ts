@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
+import Seminar from "./seminar.model";
 
 export interface IRegister extends Document {
   _id: Types.ObjectId;
@@ -7,9 +8,6 @@ export interface IRegister extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
-// RFC 5322-inspired regex for basic email format validation.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Registration schema.
@@ -27,8 +25,6 @@ const registerSchema = new Schema<IRegister>(
       type: Schema.Types.ObjectId,
       ref: 'Seminar',
       required: [true, 'Seminar ID is required'],
-      // Index for fast lookups of all registrations for a given seminar.
-      index: true,
     },
     email: {
       type: String,
@@ -36,8 +32,12 @@ const registerSchema = new Schema<IRegister>(
       trim: true,
       lowercase: true,
       validate: {
-        validator: (v: string) => EMAIL_REGEX.test(v),
-        message: 'Invalid email address.',
+        validator: function (email: string) {
+          // RFC 5322-inspired regex for basic email format validation.
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(email);
+        },
+        message: 'Invalid email address',
       },
     },
   },
@@ -45,20 +45,37 @@ const registerSchema = new Schema<IRegister>(
 );
 
 // Verify the referenced Seminar exists before persisting a registration.
-registerSchema.pre('save', async function (next) {
-  // Only run the check on new documents or when seminarId is explicitly changed.
-  if (!this.isNew && !this.isModified('seminarId')) return next();
+registerSchema.pre('save', async function (next: any) {
 
-  const seminar = await mongoose.models['Seminar']?.findById(this.seminarId).lean();
+  const register = this as IRegister;
+  // Only run the check on new documents or when seminarId is explicitly modified.
+  if (register.isNew || register.isModified('seminarId')) {
+    try {
+      const seminarExists = await Seminar.findById(register.seminarId).select('_id').lean();
 
-  if (!seminar) {
-    return next(
-      new Error(`Seminar with id "${this.seminarId.toString()}" does not exist.`)
-    );
+      if (!seminarExists) {
+        const error = new Error(`Seminar with ID ${register.seminarId} does not exist`);
+        error.name = 'ValidationError';
+        return next(error);
+      }
+    } catch {
+        const validationError = new Error('Invalid seminar ID format or database error');
+        validationError.name = 'ValidationError';
+        return next(validationError);
+    }
   }
 
   next();
 });
+
+// Create index on seminarId for faster queries
+registerSchema.index({ seminarId: 1 });
+
+// Create compound index for common queries (seminar registrations by date)
+registerSchema.index({ seminarId: 1, createdAt: -1 });
+
+// Create index on email for user registration lookups
+registerSchema.index({ email: 1 });
 
 // Guard against model recompilation during Next.js HMR in development.
 const Register: Model<IRegister> =
