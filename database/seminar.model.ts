@@ -10,7 +10,7 @@ export interface ISeminar extends Document {
   venue: string;
   date: string;
   time: string;
-  mode: 'virtual' | 'physical' | 'hybrid';
+  mode: string;
   audience: string;
   agenda: string[];
   guestSpeaker: string;
@@ -30,7 +30,8 @@ const seminarSchema = new Schema<ISeminar>(
     slug: {
       type: String,
       unique: true,
-      index: true,
+      lowercase: true,
+      trim: true,
     },
     description: {
       type: String,
@@ -100,6 +101,37 @@ const seminarSchema = new Schema<ISeminar>(
   { timestamps: true }
 );
 
+// Pre-save hook for slug generation and data normalization
+seminarSchema.pre('save', function (next: any) {
+    const seminar = this as ISeminar;
+
+    // Regenerate slug only when the title changes to avoid overwriting a custom slug.
+    if (seminar.isModified('title') || seminar.isNew) {
+        seminar.slug = generateSlug(seminar.title);
+    }
+
+    // Normalize date to YYYY-MM-DD (ISO date-only string).
+    if (seminar.isModified('date')) {
+        // const parsed = new Date(this.date);
+        // if (isNaN(parsed.getTime())) {
+        //     return next(new Error(`Invalid date: "${this.date}".`));
+        // }
+        // this.date = parsed.toISOString().split('T')[0];
+        seminar.date = normalizeDate(seminar.date);
+    }
+
+    // Normalize time to 24-hour HH:MM.
+    if (seminar.isModified('time')) {
+        try {
+            seminar.time = normalizeTime(seminar.time);
+        } catch (err) {
+            return next(err instanceof Error ? err : new Error(String(err)));
+        }
+    }
+
+    next();
+});
+
 /**
  * Converts a title into a URL-friendly slug.
  * e.g. "Hello World! 2024" → "hello-world-2024"
@@ -115,56 +147,50 @@ function generateSlug(title: string): string {
 }
 
 /**
+ * Normalizes date to ISO format.
+ */
+function normalizeDate(dateString: string) {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date format`);
+    }
+    return date.toISOString().split('T')[0];
+}
+
+/**
  * Normalizes a time string to 24-hour HH:MM format.
  * Accepts "9:00", "09:00", "9:00 AM", "9:00 pm", and "09:00:00" variants.
  */
-function normalizeTime(raw: string): string {
-  const match = raw.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s*(am|pm))?$/i);
+function normalizeTime(timeString: string): string {
+  // handles various time formats and convert to HH:MM (24-hour format)
+  const timeRegex= /^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s*(AM|PM))?$/i;
+  const match = timeString.trim().match(timeRegex);
 
   if (!match) {
-    throw new Error(`Invalid time format: "${raw}". Expected HH:MM or H:MM AM/PM.`);
+    throw new Error('Invalid time format. Expected HH:MM or HH:MM AM/PM');
   }
 
-  let hours = parseInt(match[1], 10);
+  let hours = parseInt(match[1]);
   const minutes = match[2];
   const meridiem = match[3]?.toLowerCase();
 
-  if (meridiem === 'pm' && hours < 12) hours += 12;
-  if (meridiem === 'am' && hours === 12) hours = 0;
-
-  if (hours > 23 || parseInt(minutes, 10) > 59) {
-    throw new Error(`Time value out of range: "${raw}".`);
+  if (meridiem) {
+      if (meridiem === 'PM' && hours < 12) hours += 12;
+      if (meridiem === 'AM' && hours === 12) hours = 0;
   }
 
-  return `${String(hours).padStart(2, '0')}:${minutes}`;
+  if (hours < 0 || hours > 23 || parseInt(minutes) < 0 || parseInt(minutes) > 59) {
+    throw new Error('Invalid time values');
+  }
+
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 
-seminarSchema.pre('save', function (next) {
-  // Regenerate slug only when the title changes to avoid overwriting a custom slug.
-  if (this.isModified('title')) {
-    this.slug = generateSlug(this.title);
-  }
+// Create unique index on slug for better performance
+seminarSchema.index({ slug: 1 }, { unique: true });
 
-  // Normalize date to YYYY-MM-DD (ISO date-only string).
-  if (this.isModified('date')) {
-    const parsed = new Date(this.date);
-    if (isNaN(parsed.getTime())) {
-      return next(new Error(`Invalid date: "${this.date}".`));
-    }
-    this.date = parsed.toISOString().split('T')[0];
-  }
-
-  // Normalize time to 24-hour HH:MM.
-  if (this.isModified('time')) {
-    try {
-      this.time = normalizeTime(this.time);
-    } catch (err) {
-      return next(err instanceof Error ? err : new Error(String(err)));
-    }
-  }
-
-  next();
-});
+// Create compound index for common queries
+seminarSchema.index({ date: 1, mode: 1 });
 
 // Guard against model recompilation during Next.js HMR in development.
 const Seminar: Model<ISeminar> =
