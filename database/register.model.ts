@@ -77,6 +77,9 @@ registerSchema.index({ seminarId: 1, createdAt: -1 });
 // Create index on email for user registration lookups
 registerSchema.index({ email: 1 });
 
+// Create index to block duplicate seminar registration with one email
+registerSchema.index({ seminarId: 1, email: 1 }, { unique: true, name: "uniq_seminar_email" });
+
 // Guard against model recompilation during Next.js HMR in development.
 const Register: Model<IRegister> =
   (mongoose.models.Register as Model<IRegister>) ||
