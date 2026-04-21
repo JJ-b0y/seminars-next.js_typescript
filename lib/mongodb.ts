@@ -49,12 +49,16 @@ async function connectDB(): Promise<typeof mongoose> {
       // Disable command buffering so operations fail fast when disconnected
       // rather than queuing silently.
       bufferCommands: false,
-    }
+    };
 
-    cached.promise = mongoose.connect(MONGODB_URI, options);
+    // Create a new connection promise
+    cached.promise = mongoose.connect(MONGODB_URI, options).then((mongoose) => {
+      return mongoose;
+    });
   }
 
   try {
+    // Waiting for connection to establish
     cached.conn = await cached.promise;
   } catch (error) {
     // Reset the promise so the next call can attempt a fresh connection.

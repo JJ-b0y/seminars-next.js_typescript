@@ -4,6 +4,7 @@ import Seminar from "./seminar.model";
 export interface IRegister extends Document {
   _id: Types.ObjectId;
   seminarId: Types.ObjectId;
+  slug: string;
   email: string;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +27,11 @@ const registerSchema = new Schema<IRegister>(
       ref: 'Seminar',
       required: [true, 'Seminar ID is required'],
     },
+    slug: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
     email: {
       type: String,
       required: [true, 'Email is required'],
@@ -45,7 +51,7 @@ const registerSchema = new Schema<IRegister>(
 );
 
 // Verify the referenced Seminar exists before persisting a registration.
-registerSchema.pre('save', async function (next: any) {
+registerSchema.pre('save', async function () {
 
   const register = this as IRegister;
   // Only run the check on new documents or when seminarId is explicitly modified.
@@ -56,16 +62,14 @@ registerSchema.pre('save', async function (next: any) {
       if (!seminarExists) {
         const error = new Error(`Seminar with ID ${register.seminarId} does not exist`);
         error.name = 'ValidationError';
-        return next(error);
+        throw new Error("Already registered");
       }
-    } catch {
+    } catch (err) {
         const validationError = new Error('Invalid seminar ID format or database error');
         validationError.name = 'ValidationError';
-        return next(validationError);
+        console.error(validationError, err);
     }
   }
-
-  next();
 });
 
 // Create index on seminarId for faster queries

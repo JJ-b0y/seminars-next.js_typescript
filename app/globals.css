@@ -87,7 +87,7 @@
   /*  @apply;*/
   /*}*/
   body {
-    @apply bg-pink-200;
+    @apply bg-[#140c01];
   }
   html {
     @apply font-sans;

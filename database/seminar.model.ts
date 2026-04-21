@@ -1,7 +1,6 @@
-import mongoose, { Document, Model, Schema, Types } from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
 export interface ISeminar extends Document {
-  _id: Types.ObjectId;
   title: string;
   slug: string;
   description: string;
@@ -15,8 +14,6 @@ export interface ISeminar extends Document {
   agenda: string[];
   guestSpeaker: string;
   tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 const seminarSchema = new Schema<ISeminar>(
@@ -102,7 +99,7 @@ const seminarSchema = new Schema<ISeminar>(
 );
 
 // Pre-save hook for slug generation and data normalization
-seminarSchema.pre('save', function (next: any) {
+seminarSchema.pre('save', async function () {
     const seminar = this as ISeminar;
 
     // Regenerate slug only when the title changes to avoid overwriting a custom slug.
@@ -112,24 +109,21 @@ seminarSchema.pre('save', function (next: any) {
 
     // Normalize date to YYYY-MM-DD (ISO date-only string).
     if (seminar.isModified('date')) {
-        // const parsed = new Date(this.date);
-        // if (isNaN(parsed.getTime())) {
-        //     return next(new Error(`Invalid date: "${this.date}".`));
-        // }
-        // this.date = parsed.toISOString().split('T')[0];
-        seminar.date = normalizeDate(seminar.date);
+        const dateNormalized = normalizeDate(seminar.date);
+        if (!dateNormalized) {
+            throw new Error(`Invalid date: "${seminar.date}"`);
+        }
+        seminar.date = dateNormalized;
     }
 
     // Normalize time to 24-hour HH:MM.
     if (seminar.isModified('time')) {
-        try {
-            seminar.time = normalizeTime(seminar.time);
-        } catch (err) {
-            return next(err instanceof Error ? err : new Error(String(err)));
+        const timeNormalized = normalizeTime(seminar.time);
+        if (!timeNormalized) {
+            throw new Error(`Invalid time: "${seminar.time}"`);
         }
+        seminar.time = timeNormalized;
     }
-
-    next();
 });
 
 /**
@@ -187,7 +181,7 @@ function normalizeTime(timeString: string): string {
 }
 
 // Create unique index on slug for better performance
-seminarSchema.index({ slug: 1 }, { unique: true });
+// seminarSchema.index({ slug: 1 }, { unique: true });
 
 // Create compound index for common queries
 seminarSchema.index({ date: 1, mode: 1 });
