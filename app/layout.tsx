@@ -36,8 +36,8 @@ export default function RootLayout({
       <NavBar />
         <div className="absolute inset-0 top-0 z-[-1] min-h-screen">
           <MagicRings
-            color="#6921a8"
-            colorTwo="#a78bfa"
+            color="#f7930a"
+            colorTwo="#edaa0c"
             ringCount={6}
             speed={1}
             attenuation={10}
